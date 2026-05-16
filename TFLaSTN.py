@@ -13,13 +13,11 @@ def translate_text():
     mode_group.add_argument("-e", "--encode", action="store_true", help="Convert text to numbers")
     mode_group.add_argument("-d", "--decode", action="store_true", help="Convert numbers back to text")
 
-    # Output formatting: spaces between numbers or a solid block
+    # Output formatting flags
     format_group = parser.add_mutually_exclusive_group(required=True)
-    format_group.add_argument("--gap", action="store_true", help="Separate numbers with spaces (required for decoding)")
+    format_group.add_argument("--gap", action="store_true", help="Separate numbers with spaces (required for default decoding)")
     format_group.add_argument("--no-gap", action="store_true", help="Merge numbers into one string (encoding only)")
-    
-    # Strict 6-byte HEX formatter for hardware addresses (MAC/Bluetooth)
-    parser.add_argument("--hex-format", action="store_true", help="Format and validate output as a strict 6-byte HEX sequence")
+    format_group.add_argument("--hex-format", action="store_true", help="Format/validate output as strict 6-byte HEX, or decode from it")
 
     args = parser.parse_args()
 
@@ -34,15 +32,32 @@ def translate_text():
     }
 
     if args.decode:
-        # Decoding without gaps is impossible due to varying number lengths
-        if args.no_gap:
-            print("error:404 - Decoding requires '--gap' mode")
-            return
-        
-        # Creating a reverse lookup table (number -> character)
+        # HEX decoding mode (from MAC/Bluetooth hardware address format)
+        if args.hex_format:
+            # Strip colons, spaces and force uppercase for normalization
+            clean_hex = args.text.replace(":", "").replace(" ", "").upper()
+            
+            # Validation: Ensure input contains only valid HEX characters and has an even length
+            if not all(c in "0123456789ABCDEF" for c in clean_hex) or len(clean_hex) % 2 != 0:
+                print("error:404 - Invalid HEX input string")
+                return
+                
+            # Split solid HEX string into pairs of 2 characters
+            hex_pairs = [clean_hex[i:i+2] for i in range(0, len(clean_hex), 2)]
+            
+            # Convert each HEX pair back to a decimal number string
+            input_numbers = [str(int(pair, 16)) for pair in hex_pairs]
+            
+            # Remove technical trailing zeros used for 6-byte padding
+            # Keeps standalone '0' if it represents an actual space character in the middle
+            while len(input_numbers) > 0 and input_numbers[-1] == '0':
+                input_numbers.pop()
+        else:
+            # Default decoding mode (requires numbers separated by spaces)
+            input_numbers = args.text.split()
+
+        # Reconstruct original text using reverse mapping
         reverse_map = {str(v): k for k, v in alphabet_map.items()}
-        input_numbers = args.text.split()
-        
         try:
             decoded_result = [reverse_map[num] for num in input_numbers]
             print("".join(decoded_result))
@@ -50,34 +65,33 @@ def translate_text():
             print("error:404 - Unknown number in input")
         
     elif args.encode:
-        # Handle strict HEX formatting mode
+        # HEX encoding mode (into strict 6-byte hardware address format)
         if args.hex_format:
             hex_chars = []
             for char in args.text:
                 if char in alphabet_map:
                     val = alphabet_map[char]
-                    # Convert internal ID to 2-digit uppercase HEX
                     hex_chars.append(f"{val:02X}")
                 else:
                     continue
             
             solid_hex = "".join(hex_chars)
             
-            # Validation: 6 bytes must fit into exactly 12 HEX characters
+            # Validate 6-byte limitation (maximum 12 HEX characters allowed)
             if len(solid_hex) > 12:
+                allowed_hex = solid_hex[:12]
+                formatted_hex = ":".join([allowed_hex[i:i+2] for i in range(0, 12, 2)])
+                print(f"Formatted HEX (Truncated): {formatted_hex}")
                 print("error:405 - Data overflow (exceeded strict 6-byte limit for destination format)")
                 return
             
-            # Pad with zeros if the encoded string is shorter than 6 bytes
+            # Pad with trailing zeros to fit exactly 6 bytes (12 chars)
             solid_hex = solid_hex.ljust(12, '0')
-            
-            # Separate characters with colons into pairs (XX:XX:XX:XX:XX:XX)
             formatted_hex = ":".join([solid_hex[i:i+2] for i in range(0, 12, 2)])
             print(f"Formatted HEX: {formatted_hex}")
             return
 
-        # Case-sensitive encoding: A != a
-        # Skip characters not found in the map to prevent crashes
+        # Default encoding mode
         result = []
         for char in args.text:
             if char in alphabet_map:
