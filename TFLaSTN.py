@@ -1,8 +1,9 @@
 import argparse
+import sys
 
 def translate_text():
-    # Setup the command-line argument parser with your name
-    parser = argparse.ArgumentParser(description="D_Dimka Transcoder: Secure Text-to-Numbers tool")
+    # Setup the command-line argument parser with the correct project name
+    parser = argparse.ArgumentParser(description="TFLaSTN: Secure Letters and Symbols To Numbers transcoder")
 
     # Arguments for input and processing modes
     parser.add_argument("-text", type=str, required=True, help="Text or numbers to process")
@@ -16,6 +17,9 @@ def translate_text():
     format_group = parser.add_mutually_exclusive_group(required=True)
     format_group.add_argument("--gap", action="store_true", help="Separate numbers with spaces (required for decoding)")
     format_group.add_argument("--no-gap", action="store_true", help="Merge numbers into one string (encoding only)")
+    
+    # Strict 6-byte HEX formatter for hardware addresses (MAC/Bluetooth)
+    parser.add_argument("--hex-format", action="store_true", help="Format and validate output as a strict 6-byte HEX sequence")
 
     args = parser.parse_args()
 
@@ -46,14 +50,39 @@ def translate_text():
             print("error:404 - Unknown number in input")
         
     elif args.encode:
+        # Handle strict HEX formatting mode
+        if args.hex_format:
+            hex_chars = []
+            for char in args.text:
+                if char in alphabet_map:
+                    val = alphabet_map[char]
+                    # Convert internal ID to 2-digit uppercase HEX
+                    hex_chars.append(f"{val:02X}")
+                else:
+                    continue
+            
+            solid_hex = "".join(hex_chars)
+            
+            # Validation: 6 bytes must fit into exactly 12 HEX characters
+            if len(solid_hex) > 12:
+                print("error:405 - Data overflow (exceeded strict 6-byte limit for destination format)")
+                return
+            
+            # Pad with zeros if the encoded string is shorter than 6 bytes
+            solid_hex = solid_hex.ljust(12, '0')
+            
+            # Separate characters with colons into pairs (XX:XX:XX:XX:XX:XX)
+            formatted_hex = ":".join([solid_hex[i:i+2] for i in range(0, 12, 2)])
+            print(f"Formatted HEX: {formatted_hex}")
+            return
+
         # Case-sensitive encoding: A != a
-        # We skip characters not found in the map to prevent crashes
+        # Skip characters not found in the map to prevent crashes
         result = []
         for char in args.text:
             if char in alphabet_map:
                 result.append(str(alphabet_map[char]))
             else:
-                # If char not in map, we can put a placeholder or just skip
                 continue
                 
         separator = " " if args.gap else ""
