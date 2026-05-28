@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
 
-# Force all JavaScript actions to run on Node 24 (removes the deprecation warnings)
+# Run all JavaScript actions on Node 24 (removes the deprecation warnings)
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -22,7 +22,7 @@ jobs:
             runner: windows-2022
             c_compiler: cl
             cxx_compiler: cl
-            cxxflags: /EHsc          # enable exceptions
+            cxxflags: /EHsc
 
           # Linux x86‑64 (gcc)
           - os: linux-x86
@@ -59,26 +59,31 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Install recent CMake **and** Ninja (v3 supports ninja-version input)
-      - name: Install build tools
-        uses: jwlawson/actions-setup-cmake@v3
+      # --------------------------------------------------------------
+      # Install CMake (v2 works on all runners) and Ninja (separate action)
+      # --------------------------------------------------------------
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.27'
-          ninja-version: '1.11.1'
 
-      # Linux/macOS: install extra tool‑chains when needed
-      - name: Install compiler (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4   # official Ninja setup action
+        with:
+          version: '1.11.1'
+
+      # --------------------------------------------------------------
+      # Install extra cross‑toolchain on Linux when building for aarch64
+      # --------------------------------------------------------------
+      - name: Install cross‑compiler (Linux only)
+        if: runner.os == 'Linux' && matrix.arch == 'aarch64'
         run: |
-          # gcc/g++ are already present on Ubuntu/macOS, but we need the cross‑toolchain for ARM64
-          if [[ "${{ matrix.cxx_compiler }}" == "g++" && "${{ matrix.arch }}" == "aarch64" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          fi
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-      # ------------------------------------------------------------------
+      # --------------------------------------------------------------
       # CMake configuration
-      # ------------------------------------------------------------------
+      # --------------------------------------------------------------
       - name: CMake configure
         run: |
           cmake -B build \
@@ -88,21 +93,21 @@ jobs:
                 -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} \
                 ${{ matrix.arch && format('-DCMAKE_SYSTEM_PROCESSOR={0}', matrix.arch) }}
 
-      # ------------------------------------------------------------------
+      # --------------------------------------------------------------
       # Build
-      # ------------------------------------------------------------------
+      # --------------------------------------------------------------
       - name: Build
         run: cmake --build build --config Release
 
-      # ------------------------------------------------------------------
-      # Test (optional – assumes CTest is set up)
-      # ------------------------------------------------------------------
+      # --------------------------------------------------------------
+      # Test (optional – requires CTest)
+      # --------------------------------------------------------------
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-      # ------------------------------------------------------------------
-      # Upload the binary as an artifact (v4 – current version)
-      # ------------------------------------------------------------------
+      # --------------------------------------------------------------
+      # Upload the compiled binary (use the current v4 of the action)
+      # --------------------------------------------------------------
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
