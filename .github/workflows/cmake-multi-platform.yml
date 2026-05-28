@@ -57,13 +57,12 @@ jobs:
           cmake-version: '3.27'
           ninja-version: '1.11.1'
 
-      # For Linux/macOS, install the appropriate gcc/clang version if needed
+      # Install compiler on Linux/macOS when needed
       - name: Install compiler (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
           if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
             sudo apt-get update && sudo apt-get install -y gcc g++
-            # For ARM64 cross‑compile on Ubuntu, install the cross toolchain
             if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
               sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
             fi
@@ -77,17 +76,17 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_C_COMPILER=${{ matrix.compiler }} \
                 -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
-                ${{ matrix.arch && '-DCMAKE_SYSTEM_PROCESSOR=' + matrix.arch }}
+                ${{ matrix.arch && format('-DCMAKE_SYSTEM_PROCESSOR={0}', matrix.arch) }}
 
       # Build
       - name: Build
         run: cmake --build build --config Release
 
-      # Run tests (optional – assumes you have CTest set up)
+      # Run tests (optional)
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-      # Export the binary as an artifact
+      # Upload the built binary
       - name: Upload binary
         uses: actions/upload-artifact@v3
         with:
