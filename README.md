@@ -63,4 +63,3 @@ TFLaSTN is run via the terminal after compiling the C++ source code. It requires
  * **error:404 - Invalid HEX input string:** Triggered if the input provided via `--hex-format` is malformed (e.g., non-HEX characters, or odd number of characters).
  * **error:405 - Data overflow (exceeded strict 6-byte limit for destination format):** Triggered during HEX encoding if the input text translates to more than 6 bytes.
  * **Error: Invalid or conflicting arguments:** Triggered if required flags (like `--gap` or `--no-gap`) are missing or contradictory.
-```
