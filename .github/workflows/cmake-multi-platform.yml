@@ -1,0 +1,91 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows (MSVC)
+          - os: windows
+            runner: windows-2022
+            compiler: cl
+            cxxflags: /EHsc          # enable exceptions
+          # Linux x86‑64 (gcc)
+          - os: linux-x86
+            runner: ubuntu-22.04
+            compiler: g++
+            cxxflags: -O2 -Wall
+            arch: x86_64
+          # Linux ARM64 (gcc)
+          - os: linux-arm64
+            runner: ubuntu-22.04
+            compiler: g++
+            cxxflags: -O2 -Wall
+            arch: aarch64
+          # macOS x86‑64 (clang)
+          - os: macos-x86
+            runner: macos-13
+            compiler: clang++
+            cxxflags: -O2 -Wall
+            arch: x86_64
+          # macOS ARM64 (clang, Apple Silicon)
+          - os: macos-arm64
+            runner: macos-14
+            compiler: clang++
+            cxxflags: -O2 -Wall
+            arch: arm64
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Install a recent CMake + Ninja (works on all runners)
+      - name: Install build tools
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.27'
+          ninja-version: '1.11.1'
+
+      # For Linux/macOS, install the appropriate gcc/clang version if needed
+      - name: Install compiler (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
+            sudo apt-get update && sudo apt-get install -y gcc g++  # Ubuntu default gives x86_64
+            # For ARM64 cross‑compile on Ubuntu, install the cross toolchain
+            if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
+              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+            fi
+          fi
+
+      # Configure with CMake
+      - name: CMake configure
+        run: |
+          cmake -B build \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=${{ matrix.compiler }} \
+                -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}++ \
+                ${{ matrix.arch && '-DCMAKE_SYSTEM_PROCESSOR='${{ matrix.arch }} }}
+
+      # Build
+      - name: Build
+        run: cmake --build build --config Release
+
+      # Run tests (optional – assumes you have CTest set up)
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      # Export the binary as an artifact
+      - name: Upload binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-binary
+          path: TFLaSTN
