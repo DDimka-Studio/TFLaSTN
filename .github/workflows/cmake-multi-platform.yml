@@ -13,34 +13,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows (MSVC)
           - os: windows
             runner: windows-2022
             compiler: cl
-            cxxflags: /EHsc          # enable exceptions
-
-          # Linux x86‑64 (gcc)
+            cxxflags: /EHsc
           - os: linux-x86
             runner: ubuntu-22.04
             compiler: g++
             cxxflags: -O2 -Wall
             arch: x86_64
-
-          # Linux ARM64 (gcc)
           - os: linux-arm64
             runner: ubuntu-22.04
             compiler: g++
             cxxflags: -O2 -Wall
             arch: aarch64
-
-          # macOS x86‑64 (clang)
           - os: macos-x86
             runner: macos-13
             compiler: clang++
             cxxflags: -O2 -Wall
             arch: x86_64
-
-          # macOS ARM64 (clang, Apple Silicon)
           - os: macos-arm64
             runner: macos-14
             compiler: clang++
@@ -50,14 +41,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Install a recent CMake + Ninja (works on all runners)
       - name: Install build tools
         uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.27'
           ninja-version: '1.11.1'
 
-      # Install compiler on Linux/macOS when needed
       - name: Install compiler (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
@@ -68,7 +57,6 @@ jobs:
             fi
           fi
 
-      # Configure with CMake
       - name: CMake configure
         run: |
           cmake -B build \
@@ -78,17 +66,15 @@ jobs:
                 -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
                 ${{ matrix.arch && format('-DCMAKE_SYSTEM_PROCESSOR={0}', matrix.arch) }}
 
-      # Build
       - name: Build
         run: cmake --build build --config Release
 
-      # Run tests (optional)
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-      # Upload the built binary
+      # **Updated to v4**
       - name: Upload binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-binary
           path: TFLaSTN
