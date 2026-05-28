@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Force all JavaScript actions to run on Node 24 (removes the deprecation warnings)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ${{ matrix.runner }}
@@ -13,66 +17,92 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Windows (MSVC)
           - os: windows
             runner: windows-2022
-            compiler: cl
-            cxxflags: /EHsc
+            c_compiler: cl
+            cxx_compiler: cl
+            cxxflags: /EHsc          # enable exceptions
+
+          # Linux x86‑64 (gcc)
           - os: linux-x86
             runner: ubuntu-22.04
-            compiler: g++
+            c_compiler: gcc
+            cxx_compiler: g++
             cxxflags: -O2 -Wall
             arch: x86_64
+
+          # Linux ARM64 (gcc)
           - os: linux-arm64
             runner: ubuntu-22.04
-            compiler: g++
+            c_compiler: gcc
+            cxx_compiler: g++
             cxxflags: -O2 -Wall
             arch: aarch64
+
+          # macOS x86‑64 (clang)
           - os: macos-x86
             runner: macos-13
-            compiler: clang++
+            c_compiler: clang
+            cxx_compiler: clang++
             cxxflags: -O2 -Wall
             arch: x86_64
+
+          # macOS ARM64 (clang, Apple Silicon)
           - os: macos-arm64
             runner: macos-14
-            compiler: clang++
+            c_compiler: clang
+            cxx_compiler: clang++
             cxxflags: -O2 -Wall
             arch: arm64
 
     steps:
       - uses: actions/checkout@v3
 
+      # Install recent CMake **and** Ninja (v3 supports ninja-version input)
       - name: Install build tools
-        uses: jwlawson/actions-setup-cmake@v2
+        uses: jwlawson/actions-setup-cmake@v3
         with:
           cmake-version: '3.27'
           ninja-version: '1.11.1'
 
+      # Linux/macOS: install extra tool‑chains when needed
       - name: Install compiler (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
-            sudo apt-get update && sudo apt-get install -y gcc g++
-            if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
-              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-            fi
+          # gcc/g++ are already present on Ubuntu/macOS, but we need the cross‑toolchain for ARM64
+          if [[ "${{ matrix.cxx_compiler }}" == "g++" && "${{ matrix.arch }}" == "aarch64" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           fi
 
+      # ------------------------------------------------------------------
+      # CMake configuration
+      # ------------------------------------------------------------------
       - name: CMake configure
         run: |
           cmake -B build \
                 -G Ninja \
                 -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_C_COMPILER=${{ matrix.compiler }} \
-                -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
+                -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
+                -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} \
                 ${{ matrix.arch && format('-DCMAKE_SYSTEM_PROCESSOR={0}', matrix.arch) }}
 
+      # ------------------------------------------------------------------
+      # Build
+      # ------------------------------------------------------------------
       - name: Build
         run: cmake --build build --config Release
 
+      # ------------------------------------------------------------------
+      # Test (optional – assumes CTest is set up)
+      # ------------------------------------------------------------------
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-      # **Updated to v4**
+      # ------------------------------------------------------------------
+      # Upload the binary as an artifact (v4 – current version)
+      # ------------------------------------------------------------------
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
