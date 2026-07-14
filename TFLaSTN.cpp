@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <cctype>
+#include <fstream>
 
 // Table for instant conversion of numbers to uppercase HEX characters
 const char HEX_LOOKUP[] = "0123456789ABCDEF";
@@ -55,6 +56,8 @@ void print_help() {
     std::cout << "TFLaSTN: Translator From Letters and Symbols To Numbers\n\n"
               << "Usage:\n"
               << "  -text <string>       Text or numbers to process\n"
+              << "  -file <path>         Read input from a file\n"
+              << "  -out <path>          Save output to a file\n"
               << "  -e, --encode         Convert text to numbers\n"
               << "  -d, --decode         Convert numbers back to text\n"
               << "  --gap                Separate numbers with spaces (required for default decoding)\n"
@@ -71,12 +74,22 @@ int main(int argc, char* argv[]) {
     bool encode = false, decode = false;
     bool gap = false, no_gap = false, hex_format = false;
     bool text_provided = false;
+    std::string file_path = "";
+    bool file_provided = false;
+    std::string out_path = "";
+    bool out_provided = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-text" && i + 1 < argc) {
             text = argv[++i];
             text_provided = true;
+        } else if (arg == "-file" && i + 1 < argc) {
+            file_path = argv[++i];
+            file_provided = true;
+        } else if (arg == "-out" && i + 1 < argc) {
+            out_path = argv[++i];
+            out_provided = true;
         } else if (arg == "-e" || arg == "--encode") {
             encode = true;
         } else if (arg == "-d" || arg == "--decode") {
@@ -93,13 +106,32 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (!text_provided || (encode == decode) || (!gap && !no_gap && !hex_format) || (gap && no_gap) || (gap && hex_format) || (no_gap && hex_format)) {
+    if ((!text_provided && !file_provided) || (encode == decode) || (!gap && !no_gap && !hex_format) || (gap && no_gap) || (gap && hex_format) || (no_gap && hex_format)) {
         std::cerr << "Error: Invalid or conflicting arguments.\n";
         print_help();
         return 1;
     }
 
     init_maps();
+
+    if (file_provided) {
+        std::ifstream file(file_path, std::ios::binary);
+        if (!file) {
+            std::cerr << "Error: Could not open input file: " << file_path << "\n";
+            return 1;
+        }
+        text.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    }
+
+    std::ofstream out_file;
+    if (out_provided) {
+        out_file.open(out_path);
+        if (!out_file) {
+            std::cerr << "Error: Could not open output file for writing: " << out_path << "\n";
+            return 1;
+        }
+    }
+    std::ostream& out = out_provided ? out_file : std::cout;
 
     if (decode) {
         std::vector<int> input_numbers;
@@ -112,7 +144,7 @@ int main(int argc, char* argv[]) {
                 if (c == ':' || c == ' ') continue;
                 int val = hex_char_to_val(c);
                 if (val == -1) {
-                    std::cout << "error:404 - Invalid HEX input string\n";
+                    std::cerr << "error:404 - Invalid HEX input string\n";
                     return 0;
                 }
                 if (high == -1) {
@@ -123,7 +155,7 @@ int main(int argc, char* argv[]) {
                 }
             }
             if (high != -1) { // Odd number of HEX characters
-                std::cout << "error:404 - Invalid HEX input string\n";
+                std::cerr << "error:404 - Invalid HEX input string\n";
                 return 0;
             }
 
@@ -157,11 +189,11 @@ int main(int argc, char* argv[]) {
             if (num >= 0 && num < 256 && dec_valid[num]) {
                 decoded_result.push_back(dec_mask[num]);
             } else {
-                std::cout << "error:404 - Unknown number in input\n";
+                std::cerr << "error:404 - Unknown number in input\n";
                 return 0;
             }
         }
-        std::cout << decoded_result << "\n";
+        out << decoded_result << "\n";
     } 
     else if (encode) {
         if (hex_format) {
@@ -175,27 +207,27 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            auto print_as_hex = [](const std::vector<unsigned char>& b_vec) {
+            auto print_as_hex = [&](std::ostream& os, const std::vector<unsigned char>& b_vec) {
                 for (size_t i = 0; i < b_vec.size(); ++i) {
-                    std::cout << HEX_LOOKUP[(b_vec[i] >> 4) & 0x0F] << HEX_LOOKUP[b_vec[i] & 0x0F];
-                    if (i < b_vec.size() - 1) std::cout << ':';
+                    os << HEX_LOOKUP[(b_vec[i] >> 4) & 0x0F] << HEX_LOOKUP[b_vec[i] & 0x0F];
+                    if (i < b_vec.size() - 1) os << ':';
                 }
             };
 
             if (bytes.size() > 6) {
                 // 1. First 6 bytes for MAC
-                std::cout << "MAC: ";
+                out << "MAC: ";
                 std::vector<unsigned char> truncated(bytes.begin(), bytes.begin() + 6);
-                print_as_hex(truncated);
-                std::cout << "\n";
+                print_as_hex(out, truncated);
+                out << "\n";
 
                 // 2. Error
-                std::cout << "error:405 - Data overflow (exceeded strict 6-byte limit for destination format)\n";
+                std::cerr << "error:405 - Data overflow (exceeded strict 6-byte limit for destination format)\n";
 
                 // 3. Full string
-                std::cout << "Full HEX: ";
-                print_as_hex(bytes);
-                std::cout << "\n";
+                out << "Full HEX: ";
+                print_as_hex(out, bytes);
+                out << "\n";
                 return 0;
             }
 
@@ -204,9 +236,9 @@ int main(int argc, char* argv[]) {
                 bytes.push_back(0);
             }
 
-            std::cout << "Formatted HEX: ";
-            print_as_hex(bytes);
-            std::cout << "\n";
+            out << "Formatted HEX: ";
+            print_as_hex(out, bytes);
+            out << "\n";
             return 0;
         }
 
@@ -215,12 +247,12 @@ int main(int argc, char* argv[]) {
         for (char c : text) {
             int val = enc_mask[static_cast<unsigned char>(c)];
             if (val != -1) {
-                if (!first && gap) std::cout << ' ';
-                std::cout << val;
+                if (!first && gap) out << ' ';
+                out << val;
                 first = false;
             }
         }
-        std::cout << "\n";
+        out << "\n";
     }
 
     return 0;
