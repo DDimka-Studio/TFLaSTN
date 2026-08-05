@@ -2,6 +2,7 @@
 **TFLaSTN** is a secure, lightweight command-line utility designed to transcode plain text into a unique numerical format and back again. Developed by **D_Dimka**, this tool utilizes a custom mapping logic to ensure that text—including uppercase, lowercase, symbols, and digits—is converted into a structured numeric sequence.
 
 ### ## Key Features
+ * **Dynamic Mapping & No Limits:** Built with dynamic hash tables (`std::unordered_map`), removing old 256-element array limits. You can now assign any custom numerical values you want.
  * **Case Sensitivity:** Distinguishes between uppercase (1-26) and lowercase (50-75) letters.
  * **Broad Character Support:** Includes support for standard punctuation, mathematical symbols, and digits (200-209).
  * **File Processing:** Read input directly from files and save results to output files for batch processing.
@@ -18,6 +19,7 @@ The program uses a logic-based categorization for its numerical values:
 | **Lowercase (a-z)** | 50 – 75 |
 | **Symbols (!, @, #, etc.)** | 100 – 132 |
 | **Digits (0-9)** | 200 – 209 |
+| **Custom / Extended** | Any arbitrary numbers (e.g., 300, 500+) |
 
 ### ## Usage
 TFLaSTN is run via the terminal after compiling the C++ source code. It requires an input source (text or file) and specific flags for mode and formatting.

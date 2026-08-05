@@ -4,23 +4,23 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <unordered_map>
 
 // Table for instant conversion of numbers to uppercase HEX characters
 const char HEX_LOOKUP[] = "0123456789ABCDEF";
 
-// Forward array for encoding (index = character ASCII code)
-int enc_mask[256];
-// Reverse array for decoding (index = encoded number)
-char dec_mask[256];
-// Validity flags for decoding
-bool dec_valid[256];
+// Dynamic maps instead of fixed size arrays to remove limits
+std::unordered_map<char, int> enc_mask;
+std::unordered_map<int, char> dec_mask;
 
 void init_maps() {
-    // Initialize arrays with default values (-1 means no character)
-    std::fill_n(enc_mask, 256, -1);
-    std::fill_n(dec_valid, 256, false);
+    enc_mask.clear();
+    dec_mask.clear();
 
-    // Mapping: 0 = Space, Uppercase letters = 1-26, Lowercase = 50-75, Symbols = 100-132, Digits = 200-209
+    // =========================================================================
+    // MAPPING TABLE: Add any numbers you want here! 
+    // E.g., 300, 500, 10000. No limits anymore.
+    // =========================================================================
     std::pair<char, int> mapping[] = {
         {' ', 0},
         {'A', 1}, {'B', 2}, {'C', 3}, {'D', 4}, {'E', 5}, {'F', 6}, {'G', 7}, {'H', 8}, {'I', 9}, {'J', 10}, 
@@ -38,9 +38,8 @@ void init_maps() {
     };
 
     for (const auto& p : mapping) {
-        enc_mask[static_cast<unsigned char>(p.first)] = p.second;
+        enc_mask[p.first] = p.second;
         dec_mask[p.second] = p.first;
-        dec_valid[p.second] = true;
     }
 }
 
@@ -53,7 +52,7 @@ inline int hex_char_to_val(char c) {
 }
 
 void print_help() {
-    std::cout << "TFLaSTN: Translator From Letters and Symbols To Numbers\n\n"
+    std::cout << "TFLaSTN: Translator From Letters and Symbols To Numbers\n"
               << "Usage:\n"
               << "  -text <string>       Text or numbers to process\n"
               << "  -file <path>         Read input from a file\n"
@@ -186,8 +185,9 @@ int main(int argc, char* argv[]) {
         std::string decoded_result;
         decoded_result.reserve(input_numbers.size());
         for (int num : input_numbers) {
-            if (num >= 0 && num < 256 && dec_valid[num]) {
-                decoded_result.push_back(dec_mask[num]);
+            auto it = dec_mask.find(num);
+            if (it != dec_mask.end()) {
+                decoded_result.push_back(it->second);
             } else {
                 std::cerr << "error:404 - Unknown number in input\n";
                 return 0;
@@ -201,9 +201,9 @@ int main(int argc, char* argv[]) {
             bytes.reserve(text.length());
             
             for (char c : text) {
-                int val = enc_mask[static_cast<unsigned char>(c)];
-                if (val != -1) {
-                    bytes.push_back(static_cast<unsigned char>(val));
+                auto it = enc_mask.find(c);
+                if (it != enc_mask.end()) {
+                    bytes.push_back(static_cast<unsigned char>(it->second));
                 }
             }
 
@@ -245,10 +245,10 @@ int main(int argc, char* argv[]) {
         // Standard encoding
         bool first = true;
         for (char c : text) {
-            int val = enc_mask[static_cast<unsigned char>(c)];
-            if (val != -1) {
+            auto it = enc_mask.find(c);
+            if (it != enc_mask.end()) {
                 if (!first && gap) out << ' ';
-                out << val;
+                out << it->second;
                 first = false;
             }
         }
