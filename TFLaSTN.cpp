@@ -144,6 +144,7 @@ int main(int argc, char* argv[]) {
                 int val = hex_char_to_val(c);
                 if (val == -1) {
                     std::cerr << "error:404 - Invalid HEX input string\n";
+                    // Intentional: exit code is 0 on errors by design.
                     return 0;
                 }
                 if (high == -1) {
@@ -155,6 +156,7 @@ int main(int argc, char* argv[]) {
             }
             if (high != -1) { // Odd number of HEX characters
                 std::cerr << "error:404 - Invalid HEX input string\n";
+                // Intentional: exit code is 0 on errors by design.
                 return 0;
             }
 
@@ -190,6 +192,7 @@ int main(int argc, char* argv[]) {
                 decoded_result.push_back(it->second);
             } else {
                 std::cerr << "error:404 - Unknown number in input\n";
+                // Intentional: exit code is 0 on errors by design.
                 return 0;
             }
         }
@@ -223,6 +226,7 @@ int main(int argc, char* argv[]) {
 
                 // 2. Error
                 std::cerr << "error:405 - Data overflow (exceeded strict 6-byte limit for destination format)\n";
+                // Intentional: exit code is 0 on errors by design.
 
                 // 3. Full string
                 out << "Full HEX: ";

@@ -1,7 +1,7 @@
 ## TFLaSTN: Translator From Letters and Symbols To Numbers
 **TFLaSTN** is a secure, lightweight command-line utility designed to transcode plain text into a unique numerical format and back again. Developed by **D_Dimka**, this tool utilizes a custom mapping logic to ensure that text—including uppercase, lowercase, symbols, and digits—is converted into a structured numeric sequence.
 
-### ## Key Features
+### Key Features
  * **Dynamic Mapping & No Limits:** Built with dynamic hash tables (`std::unordered_map`), removing old 256-element array limits. You can now assign any custom numerical values you want.
  * **Case Sensitivity:** Distinguishes between uppercase (1-26) and lowercase (50-75) letters.
  * **Broad Character Support:** Includes support for standard punctuation, mathematical symbols, and digits (200-209).
@@ -10,24 +10,25 @@
  * **Hex Mode:** The `--hex-format` flag enables strict 6-byte HEX encoding and decoding, useful for high-density data transfer.
  * **Error Handling:** Built-in validation to prevent decoding failures or crashes from unknown characters.
 
-### ## How the Mapping Works
+### How the Mapping Works
 The program uses a logic-based categorization for its numerical values:
+
 | Category | Numerical Range |
 |---|---|
 | **Space** | 0 |
 | **Uppercase (A-Z)** | 1 – 26 |
 | **Lowercase (a-z)** | 50 – 75 |
-| **Symbols (!, @, #, etc.)** | 100 – 132 |
+| **Symbols (!, @, #, etc.)** | 100 – 131 |
 | **Digits (0-9)** | 200 – 209 |
 | **Custom / Extended** | Any arbitrary numbers (e.g., 300, 500+) |
 
-### ## Usage
+### Usage
 TFLaSTN is run via the terminal after compiling the C++ source code. It requires an input source (text or file) and specific flags for mode and formatting.
 
-#### #### Requirements
+#### Requirements
  * A C++ compiler (e.g., g++)
 
-#### #### Command Line Arguments
+#### Command Line Arguments
  * `-text <string>`: The string or numerical sequence you wish to process.
  * `-file <path>`: Read the input content from the specified file.
  * `-out <path>`: Save the processing result to the specified file instead of the console.
@@ -37,7 +38,7 @@ TFLaSTN is run via the terminal after compiling the C++ source code. It requires
  * `--no-gap`: Merges numbers into a single string (Encoding only).
  * `--hex-format`: Forces/validates output/input as strict 6-byte HEX (using `:` as a separator).
 
-### ## Examples
+### Examples
 **1. Encoding text with gaps (Standard Mode):**
 ```bash
 ./TFLaSTN -text "Hello" -e --gap
@@ -54,7 +55,8 @@ TFLaSTN is run via the terminal after compiling the C++ source code. It requires
 ```bash
 ./TFLaSTN -text "Test" -e --hex-format
 ```
-*Output: Formatted HEX: 20:54:73:74:00:00*
+*Output: Formatted HEX: 14:36:44:45:00:00*
+(Bytes are the mapping values from the table above, not ASCII codes: `T` = 20 = `0x14`, `e` = 54 = `0x36`, and so on.)
 
 **4. Decoding a numeric sequence from a file:**
 ```bash
@@ -64,11 +66,11 @@ TFLaSTN is run via the terminal after compiling the C++ source code. It requires
 
 **5. Decoding HEX input (Strict Mode):**
 ```bash
-./TFLaSTN -text "20:54:73:74" -d --hex-format
+./TFLaSTN -text "14:36:44:45:00:00" -d --hex-format
 ```
-*Output: test*
+*Output: Test*
 
-### ## Error Messages
+### Error Messages
  * **error:404 - Unknown number in input:** Triggered if the input contains a number that does not exist in the TFLaSTN alphabet map.
  * **error:404 - Invalid HEX input string:** Triggered if the input provided via `--hex-format` is malformed.
  * **error:405 - Data overflow (exceeded strict 6-byte limit for destination format):** Triggered during HEX encoding if the input text translates to more than 6 bytes.
