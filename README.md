@@ -1,5 +1,5 @@
 ## TFLaSTN: Translator From Letters and Symbols To Numbers
-**TFLaSTN** is a secure, lightweight command-line utility designed to transcode plain text into a unique numerical format and back again. Developed by **D_Dimka**, this tool utilizes a custom mapping logic to ensure that text—including uppercase, lowercase, symbols, and digits—is converted into a structured numeric sequence.
+**TFLaSTN** is a lightweight command-line utility designed to transcode plain text into a unique numerical format and back again. Developed by **D_Dimka**, this tool utilizes a custom mapping logic to ensure that text—including uppercase, lowercase, symbols, and digits—is converted into a structured numeric sequence.
 
 ### Key Features
  * **Dynamic Mapping & No Limits:** Built with dynamic hash tables (`std::unordered_map`), removing old 256-element array limits. You can now assign any custom numerical values you want.
@@ -7,8 +7,8 @@
  * **Broad Character Support:** Includes support for standard punctuation, mathematical symbols, and digits (200-209).
  * **File Processing:** Read input directly from files and save results to output files for batch processing.
  * **Formatting Options:** Choose between spaced sequences (`--gap`) for readability and standard decoding, or solid blocks (`--no-gap`) for compact encoding.
- * **Hex Mode:** The `--hex-format` flag enables strict 6-byte HEX encoding and decoding, useful for high-density data transfer.
- * **Error Handling:** Built-in validation to prevent decoding failures or crashes from unknown characters.
+ * **Hex Mode:** The `--hex-format` flag outputs a strict 6-byte, colon-separated HEX block — any string up to 6 characters comes out looking exactly like a MAC address.
+ * **Error Handling:** Decoding is validated against the mapping table: unknown numbers or malformed HEX produce a clear error instead of garbage output. Characters without a mapping (e.g., non-ASCII letters) are skipped during encoding.
 
 ### How the Mapping Works
 The program uses a logic-based categorization for its numerical values:
